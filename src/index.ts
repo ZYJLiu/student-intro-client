@@ -3,7 +3,7 @@ import * as web3 from "@solana/web3.js";
 import * as borsh from "@project-serum/borsh";
 
 let programId = new web3.PublicKey(
-  "3BVP5o96mnSkyAedCue9bbcSJmDbCeEw4TBhWg11orLJ"
+  "6BaDaoXx678yvTUpYFLEYSHrrsxq81Xh8maoXL3pYjb"
 );
 
 async function main() {
@@ -12,24 +12,23 @@ async function main() {
 
   const reviewInstruction = await createReviewInstruction(
     signer,
-    "title",
-    3,
-    "description"
+    "name",
+    "message"
   );
-  // const [pda] = await web3.PublicKey.findProgramAddress(
-  //   [signer.publicKey.toBuffer(), Buffer.from("title")],
-  //   programId
-  // );
-  // const commentInstruction = await createCommentInstruction(
-  //   connection,
-  //   signer,
-  //   pda,
-  //   "comment test"
-  // );
+  const [pda] = await web3.PublicKey.findProgramAddress(
+    [signer.publicKey.toBuffer()],
+    programId
+  );
+  const commentInstruction = await createCommentInstruction(
+    connection,
+    signer,
+    pda,
+    "reply"
+  );
 
   const transactionSignature = await compileAndSendTransaction(
     connection,
-    [reviewInstruction],
+    [commentInstruction],
     signer
   );
 
@@ -52,32 +51,29 @@ main()
 
 async function createReviewInstruction(
   payer: web3.Keypair,
-  title: string,
-  rating: number,
-  description: string
+  name: string,
+  message: string
 ): Promise<web3.TransactionInstruction> {
   const [pda] = await web3.PublicKey.findProgramAddress(
-    [payer.publicKey.toBuffer(), Buffer.from(title)],
+    [payer.publicKey.toBuffer()],
     programId
   );
 
   const [pda_counter] = await web3.PublicKey.findProgramAddress(
-    [pda.toBuffer(), Buffer.from("comment")],
+    [pda.toBuffer(), Buffer.from("reply")],
     programId
   );
 
   const borshInstructionSchema = borsh.struct([
     borsh.u8("variant"),
-    borsh.str("title"),
-    borsh.u8("rating"),
-    borsh.str("description"),
+    borsh.str("name"),
+    borsh.str("msg"),
   ]);
 
   const payload = {
     variant: 0,
-    title: title,
-    rating: rating,
-    description: description,
+    name: name,
+    msg: message,
   };
 
   const buffer = Buffer.alloc(1000);
@@ -120,10 +116,10 @@ async function createCommentInstruction(
   connection: web3.Connection,
   payer: web3.Keypair,
   reviewPubkey: web3.PublicKey,
-  comment: string
+  reply: string
 ): Promise<web3.TransactionInstruction> {
   const [pda_counter] = await web3.PublicKey.findProgramAddress(
-    [reviewPubkey.toBuffer(), Buffer.from("comment")],
+    [reviewPubkey.toBuffer(), Buffer.from("reply")],
     programId
   );
 
@@ -147,14 +143,12 @@ async function createCommentInstruction(
 
   const borshInstructionSchema = borsh.struct([
     borsh.u8("variant"),
-    borsh.publicKey("review"),
-    borsh.str("comment"),
+    borsh.str("reply"),
   ]);
 
   const payload = {
     variant: 2,
-    review: reviewPubkey,
-    comment: comment,
+    reply: reply,
   };
 
   const buffer = Buffer.alloc(1000);
@@ -201,7 +195,7 @@ async function fetchComments(
   reviewPubkey: web3.PublicKey
 ) {
   const [pda_counter] = await web3.PublicKey.findProgramAddress(
-    [reviewPubkey.toBuffer(), Buffer.from("comment")],
+    [reviewPubkey.toBuffer(), Buffer.from("reply")],
     programId
   );
 
@@ -236,8 +230,8 @@ async function fetchComments(
   const borshCommentAccountSchema = borsh.struct([
     borsh.str("discriminator"),
     borsh.bool("is_initialized"),
-    borsh.publicKey("review"),
-    borsh.str("comment"),
+    borsh.publicKey("studentinfo"),
+    borsh.str("reply"),
   ]);
 
   const comments = [];
@@ -245,7 +239,7 @@ async function fetchComments(
   for (let i = 0; i < comment_account.length; i++) {
     const comment: string = borshCommentAccountSchema.decode(
       comment_account[i]?.data
-    ).comment;
+    ).reply;
     comments.push(comment);
     console.log(comment);
   }
